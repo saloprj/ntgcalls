@@ -16,6 +16,11 @@
 #include <wrtc/models/outgoing_video_format.hpp>
 
 namespace wrtc {
+    void NativeNetworkInterface::setE2EFrameCallback(E2EFrameCallback callback) {
+        std::lock_guard lock(mutex);
+        e2eFrameCallback_ = std::move(callback);
+    }
+
     void NativeNetworkInterface::initConnection(bool supportsPacketSending) {
         std::weak_ptr weak(shared_from_this());
         networkThread()->PostTask([weak, supportsPacketSending] {

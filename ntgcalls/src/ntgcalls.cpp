@@ -244,6 +244,13 @@ namespace ntgcalls {
         mediaStateCallback = callback;
     }
 
+    void NTgCalls::setE2EFrameCallback(int64_t chatId, wrtc::E2EFrameCallback callback) {
+        std::lock_guard lock(mutex);
+        if (exists(chatId)) {
+            connections[chatId]->setE2EFrameCallback(std::move(callback));
+        }
+    }
+
     void NTgCalls::onConnectionChange(const std::function<void(int64_t, NetworkInfo)>& callback) {
        std::lock_guard lock(mutex);
        connectionChangeCallback = callback;

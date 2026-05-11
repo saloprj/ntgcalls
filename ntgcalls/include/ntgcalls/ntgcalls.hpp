@@ -129,6 +129,13 @@ namespace ntgcalls {
 
         void onRequestBroadcastTimestamp(const std::function<void(int64_t)>& callback);
 
+        // TdE2E hook: install a per-frame encrypt/decrypt callback for the
+        // chatId's active call. No-op if the call doesn't exist or isn't a
+        // NativeNetworkInterface (1:1 + group VC). Callback shape mirrors
+        // tgcalls' GroupInstanceDescriptor.e2eEncryptDecrypt.
+        // Pass nullptr to disable.
+        void setE2EFrameCallback(int64_t chatId, wrtc::E2EFrameCallback callback);
+
         ASYNC_RETURN(void) sendBroadcastTimestamp(int64_t chatId, int64_t timestamp);
 
         ASYNC_RETURN(void) sendBroadcastPart(int64_t chatId, int64_t segmentId, int32_t partId, wrtc::MediaSegment::Part::Status status, bool qualityUpdate, const std::optional<BYTES(bytes::binary)> &data);

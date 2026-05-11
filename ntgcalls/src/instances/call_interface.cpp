@@ -4,7 +4,15 @@
 
 #include <ntgcalls/instances/call_interface.hpp>
 
+#include <wrtc/interfaces/native_network_interface.hpp>
+
 namespace ntgcalls {
+    void CallInterface::setE2EFrameCallback(wrtc::E2EFrameCallback callback) {
+        if (auto native = std::dynamic_pointer_cast<wrtc::NativeNetworkInterface>(connection)) {
+            native->setE2EFrameCallback(std::move(callback));
+        }
+    }
+
     CallInterface::CallInterface(webrtc::Thread* updateThread): updateThread(updateThread) {
         streamManager = std::make_shared<StreamManager>(updateThread);
     }

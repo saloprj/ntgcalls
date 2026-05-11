@@ -364,6 +364,14 @@ namespace wrtc {
         audioContent.payloadTypes = media.audioPayloadTypes;
 
         if (!audioChannel) {
+            // TdE2E (Phase 2): wrap the user-supplied callback as a per-frame
+            // encrypt transformer on the OUTGOING path. Null callback =
+            // unchanged behavior (classic group VC + 1:1 calls).
+            webrtc::scoped_refptr<webrtc::FrameTransformerInterface> e2eOutTransformer;
+            if (e2eFrameCallback_) {
+                e2eOutTransformer = webrtc::make_ref_counted<E2EFrameTransformer>(
+                    /*user_id=*/0, /*is_outgoing=*/true, e2eFrameCallback_);
+            }
             audioChannel = std::make_unique<OutgoingAudioChannel>(
                 call.get(),
                 channelManager.get(),
@@ -371,7 +379,8 @@ namespace wrtc {
                 audioContent,
                 workerThread(),
                 networkThread(),
-                &audioSink
+                &audioSink,
+                e2eOutTransformer
             );
         }
 

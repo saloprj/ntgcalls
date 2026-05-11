@@ -10,6 +10,7 @@
 #include <ntgcalls/models/remote_source_state.hpp>
 #include <ntgcalls/signaling/messages/media_state_message.hpp>
 #include <wrtc/interfaces/network_interface.hpp>
+#include <wrtc/interfaces/media/e2e_frame_transformer.hpp>
 
 namespace ntgcalls {
 
@@ -44,6 +45,13 @@ namespace ntgcalls {
         };
 
         virtual void stop();
+
+        // TdE2E hook: install a per-frame encrypt/decrypt callback on the
+        // audio channel(s). Forwards to the underlying NetworkInterface's
+        // setE2EFrameCallback if it's a NativeNetworkInterface (group +
+        // p2p). Callback shape mirrors tgcalls' GroupInstanceDescriptor
+        // .e2eEncryptDecrypt. Pass nullptr to disable.
+        void setE2EFrameCallback(wrtc::E2EFrameCallback callback);
 
         wrtc::ConnectionMode getConnectionMode() const;
 

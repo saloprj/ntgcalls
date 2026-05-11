@@ -30,6 +30,37 @@ PYBIND11_MODULE(ntgcalls, m) {
     wrapper.def("mute", &ntgcalls::NTgCalls::mute, py::arg("chat_id"));
     wrapper.def("unmute", &ntgcalls::NTgCalls::unmute, py::arg("chat_id"));
     wrapper.def("stop", &ntgcalls::NTgCalls::stop, py::arg("chat_id"));
+    // TdE2E hook (Phase 2 of conference-call plan).
+    // The Python callable receives (frame_bytes, user_id, is_outgoing,
+    // plaintext_header_size) and returns transformed bytes. Returning empty
+    // bytes silently drops the frame (matches tgcalls semantics).
+    wrapper.def("set_e2e_frame_callback",
+        [](ntgcalls::NTgCalls& self, int64_t chatId,
+           const std::function<py::bytes(py::bytes, int64_t, bool, int32_t)>& cb) {
+            if (!cb) {
+                self.setE2EFrameCallback(chatId, nullptr);
+                return;
+            }
+            self.setE2EFrameCallback(chatId,
+                [cb](const std::vector<uint8_t>& frame,
+                     int64_t user_id, bool is_outgoing,
+                     int32_t plaintext_header_size) -> std::vector<uint8_t> {
+                    py::gil_scoped_acquire gil;
+                    try {
+                        py::bytes in(reinterpret_cast<const char*>(frame.data()),
+                                     frame.size());
+                        py::bytes out = cb(in, user_id, is_outgoing,
+                                            plaintext_header_size);
+                        std::string s = out;
+                        return std::vector<uint8_t>(s.begin(), s.end());
+                    } catch (const std::exception&) {
+                        // Silent drop on Python error; matches tgcalls'
+                        // empty-return semantics.
+                        return {};
+                    }
+                });
+        },
+        py::arg("chat_id"), py::arg("callback").none(true));
     wrapper.def("stop_presentation", &ntgcalls::NTgCalls::stopPresentation, py::arg("chat_id"));
     wrapper.def("time", &ntgcalls::NTgCalls::time, py::arg("chat_id"), py::arg("direction"));
     wrapper.def("get_state", &ntgcalls::NTgCalls::getState, py::arg("chat_id"));

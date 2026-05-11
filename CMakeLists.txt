@@ -15,6 +15,16 @@ add_custom_target(clean_objects
 )
 
 project(ntgcalls VERSION 2.1.0 LANGUAGES C CXX)
+# Load PlatformUtils.cmake here so GetProperty() etc are defined for the
+# Find*.cmake modules included below, even when the project is configured
+# without -DCMAKE_TOOLCHAIN_FILE=cmake/Toolchain.cmake (e.g. for in-source
+# dev builds that don't need the full manylinux + clang setup).
+# Note: GetProperty() needs ${props_loc} pointing at version.properties;
+# initialize it here so the helper works regardless of include order.
+get_filename_component(props_loc "version.properties" REALPATH)
+include(cmake/PlatformUtils.cmake)
+include(cmake/DownloadProject.cmake)
+include(cmake/GitUtils.cmake)
 include(cmake/VersionUtil.cmake)
 
 if (MACOS)

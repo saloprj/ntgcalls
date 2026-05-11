@@ -15,7 +15,8 @@ namespace wrtc {
         const MediaContent& mediaContent,
         webrtc::Thread *workerThread,
         webrtc::Thread* networkThread,
-        std::weak_ptr<RemoteAudioSink> remoteAudioSink
+        std::weak_ptr<RemoteAudioSink> remoteAudioSink,
+        webrtc::scoped_refptr<webrtc::FrameTransformerInterface> frameTransformer
     ): _ssrc(mediaContent.ssrc), workerThread(workerThread), networkThread(networkThread) {
         updateActivity();
 
@@ -88,6 +89,14 @@ namespace wrtc {
             });
             channel->receive_channel()->SetRawAudioSink(_ssrc, std::move(rawSink));
         });
+        // TdE2E hook — install per-frame decrypt transformer on the receive
+        // path. Null transformer = unchanged behavior (1:1 calls + classic
+        // group VC).
+        if (frameTransformer) {
+            workerThread->BlockingCall([&] {
+                channel->receive_channel()->SetDepacketizerToDecoderFrameTransformer(_ssrc, frameTransformer);
+            });
+        }
     }
 
     IncomingAudioChannel::~IncomingAudioChannel() {

@@ -3,6 +3,8 @@
 //
 
 #pragma once
+#include <api/frame_transformer_interface.h>
+#include <api/scoped_refptr.h>
 #include <call/call.h>
 #include <pc/dtls_srtp_transport.h>
 #include <pc/rtp_sender.h>
@@ -27,7 +29,8 @@ namespace wrtc {
             const MediaContent& mediaContent,
             webrtc::Thread* workerThread,
             webrtc::Thread* networkThread,
-            webrtc::LocalAudioSinkAdapter* sink
+            webrtc::LocalAudioSinkAdapter* sink,
+            webrtc::scoped_refptr<webrtc::FrameTransformerInterface> frameTransformer = nullptr
         );
 
         void set_enabled(bool enable) const;

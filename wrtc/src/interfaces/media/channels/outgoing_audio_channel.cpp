@@ -14,7 +14,8 @@ namespace wrtc {
         const MediaContent& mediaContent,
         webrtc::Thread *workerThread,
         webrtc::Thread* networkThread,
-        webrtc::LocalAudioSinkAdapter* sink
+        webrtc::LocalAudioSinkAdapter* sink,
+        webrtc::scoped_refptr<webrtc::FrameTransformerInterface> frameTransformer
     ): _ssrc(mediaContent.ssrc), workerThread(workerThread), networkThread(networkThread), sink(sink) {
         webrtc::AudioOptions audioOptions;
         audioOptions.echo_cancellation = false;
@@ -82,6 +83,13 @@ namespace wrtc {
                 channel->send_channel()->SetRtpSendParameters(_ssrc, updatedParameters);
             }
         });
+        // TdE2E hook — install per-frame encrypt transformer on the send path.
+        // Null transformer = unchanged behavior (1:1 calls + classic group VC).
+        if (frameTransformer) {
+            workerThread->BlockingCall([&] {
+                channel->send_channel()->SetEncoderToPacketizerFrameTransformer(_ssrc, frameTransformer);
+            });
+        }
     }
 
     void OutgoingAudioChannel::set_enabled(const bool enable) const {

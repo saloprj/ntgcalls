@@ -3,6 +3,8 @@
 //
 
 #pragma once
+#include <api/frame_transformer_interface.h>
+#include <api/scoped_refptr.h>
 #include <call/call.h>
 #include <pc/dtls_srtp_transport.h>
 #include <wrtc/models/media_content.hpp>
@@ -26,7 +28,8 @@ namespace wrtc {
             const MediaContent& mediaContent,
             webrtc::Thread *workerThread,
             webrtc::Thread* networkThread,
-            std::weak_ptr<RemoteAudioSink> remoteAudioSink
+            std::weak_ptr<RemoteAudioSink> remoteAudioSink,
+            webrtc::scoped_refptr<webrtc::FrameTransformerInterface> frameTransformer = nullptr
         );
 
         ~IncomingAudioChannel();

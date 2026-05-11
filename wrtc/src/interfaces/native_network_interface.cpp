@@ -149,6 +149,13 @@ namespace wrtc {
             }
             RTC_LOG(LS_INFO) << "Adding incoming audio channel with ssrc " << mediaContent.mainSsrc();
             if (const auto sink = remoteAudioSink.lock()) sink->addSource();
+            // TdE2E (Phase 2): wrap the user-supplied callback as a per-frame
+            // decrypt transformer. Null callback = unchanged behavior.
+            webrtc::scoped_refptr<webrtc::FrameTransformerInterface> e2eDecryptTransformer;
+            if (e2eFrameCallback_) {
+                e2eDecryptTransformer = webrtc::make_ref_counted<E2EFrameTransformer>(
+                    /*user_id=*/0, /*is_outgoing=*/false, e2eFrameCallback_);
+            }
             incomingAudioChannels[endpoint] = std::make_unique<IncomingAudioChannel>(
                 call.get(),
                 channelManager.get(),
@@ -156,7 +163,8 @@ namespace wrtc {
                 mediaContent,
                 workerThread(),
                 networkThread(),
-                remoteAudioSink
+                remoteAudioSink,
+                e2eDecryptTransformer
             );
         } else if (isAddable && mediaContent.type == MediaContent::Type::Video) {
             auto videoCodecs = OutgoingVideoFormat::getVideoCodecs(

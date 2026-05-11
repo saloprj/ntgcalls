@@ -18,6 +18,7 @@
 #include <wrtc/interfaces/media/channels/outgoing_video_channel.hpp>
 #include <wrtc/interfaces/media/channels/incoming_audio_channel.hpp>
 #include <wrtc/interfaces/media/channels/incoming_video_channel.hpp>
+#include <wrtc/interfaces/media/e2e_frame_transformer.hpp>
 #include <pc/sdp_payload_type_suggester.h>
 
 namespace wrtc {
@@ -51,6 +52,9 @@ namespace wrtc {
 
     protected:
         std::mutex mutex;
+        // TdE2E callback stored from setE2EFrameCallback(); when non-null,
+        // audio-channel construction wraps it in an E2EFrameTransformer.
+        E2EFrameCallback e2eFrameCallback_;
         std::unique_ptr<webrtc::Call> call;
         std::unique_ptr<webrtc::SdpPayloadTypeSuggester> payloadTypeSuggester;
         webrtc::LocalAudioSinkAdapter audioSink;
@@ -117,6 +121,13 @@ namespace wrtc {
         void removeIncomingAudio(const std::string& endpoint);
 
     public:
+        // TdE2E hook (Phase 2 of conference-call plan): when set, a per-frame
+        // FrameTransformer is installed on every audio channel created from
+        // here on. Existing channels are unaffected. Pass nullptr to disable.
+        // The transformer wraps libwebrtc's FrameTransformerInterface and
+        // mirrors tgcalls' GroupInstanceDescriptor.e2eEncryptDecrypt API.
+        void setE2EFrameCallback(E2EFrameCallback callback);
+
         PeerIceParameters localIceParameters();
 
         std::unique_ptr<webrtc::SSLFingerprint> localFingerprint() const;

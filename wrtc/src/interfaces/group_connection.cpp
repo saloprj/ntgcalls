@@ -414,6 +414,15 @@ namespace wrtc {
         MediaContent mediaContent;
         mediaContent.type = MediaContent::Type::Video;
         mediaContent.ssrcGroups = ssrcGroups;
+        // dialogbrain/screen-share-fix: populate payloadTypes + rtpExtensions
+        // from mediaConfig so the downstream IncomingVideoChannel is built
+        // with the negotiated codec list. Without this the channel has an
+        // empty codec table and the SFU's video stream can't be demuxed —
+        // SCREEN frames silently never reach the on_frames callback. Mirrors
+        // the outgoing-video setup at the top of this file (line ~394) and
+        // the incoming-audio setup in addIncomingAudio() below.
+        mediaContent.rtpExtensions = mediaConfig.videoRtpExtensions;
+        mediaContent.payloadTypes = mediaConfig.videoPayloadTypes;
         if (mtprotoStream) {
             mtprotoStream->addIncomingVideo(
                 endpoint,

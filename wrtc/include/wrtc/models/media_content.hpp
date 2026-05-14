@@ -114,8 +114,13 @@ namespace wrtc {
         }
 
         [[nodiscard]] bool isScreenCast() const {
+            // dialogbrain/screen-share-fix: relaxed size()==2 → size()>=2.
+            // Some Telegram clients publish presentation tracks with more than
+            // 2 SSRCs in the SIM group (e.g. primary + RTX + FEC variants);
+            // the strict equality would mis-classify them as camera tracks and
+            // bypass the screen-cast quality/rendering paths.
             return std::ranges::any_of(ssrcGroups, [](const auto& group) {
-                return group.semantics == "SIM" && group.ssrcs.size() == 2;
+                return group.semantics == "SIM" && group.ssrcs.size() >= 2;
             });
         }
 

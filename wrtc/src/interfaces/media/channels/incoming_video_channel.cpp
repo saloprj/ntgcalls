@@ -17,7 +17,8 @@ namespace wrtc {
         const std::vector<webrtc::Codec>& codecs,
         webrtc::Thread* workerThread,
         webrtc::Thread* networkThread,
-        std::weak_ptr<RemoteVideoSink> remoteVideoSink
+        std::weak_ptr<RemoteVideoSink> remoteVideoSink,
+        webrtc::scoped_refptr<webrtc::FrameTransformerInterface> frameTransformer
     ) : workerThread(workerThread), networkThread(networkThread) {
         sink = std::make_unique<RawVideoSink>();
         uint32_t mid = randomIdGenerator->GenerateId();
@@ -101,6 +102,16 @@ namespace wrtc {
                 }
             });
         });
+        // dialogbrain TdE2E (Phase 2 — video): mirror what IncomingAudioChannel
+        // does for audio. Without this hook, encrypted SCREEN frames are
+        // never decrypted; the libwebrtc decoder receives garbage and
+        // emits uniform-gray YUV output. Confirmed live 2026-05-15: mobile
+        // share frames arrived at 884x1920 but every plane was 0x80.
+        if (frameTransformer) {
+            workerThread->BlockingCall([&] {
+                channel->receive_channel()->SetDepacketizerToDecoderFrameTransformer(_ssrc, frameTransformer);
+            });
+        }
         channel->Enable(true);
     }
 

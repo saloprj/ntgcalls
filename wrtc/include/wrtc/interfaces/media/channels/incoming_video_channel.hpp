@@ -3,6 +3,7 @@
 //
 
 #pragma once
+#include <api/frame_transformer_interface.h>
 #include <pc/channel.h>
 #include <pc/rtp_transport.h>
 #include <wrtc/interfaces/media/channel_manager.hpp>
@@ -30,7 +31,8 @@ namespace wrtc {
             const std::vector<webrtc::Codec>& codecs,
             webrtc::Thread *workerThread,
             webrtc::Thread* networkThread,
-            std::weak_ptr<RemoteVideoSink> remoteVideoSink
+            std::weak_ptr<RemoteVideoSink> remoteVideoSink,
+            webrtc::scoped_refptr<webrtc::FrameTransformerInterface> frameTransformer = nullptr
         );
 
         ~IncomingVideoChannel();

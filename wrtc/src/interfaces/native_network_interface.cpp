@@ -188,8 +188,14 @@ namespace wrtc {
             const bool sinkScreen = mediaContent.isScreenCast();
             const bool screenSinkLive = !!remoteScreenCastSink.lock();
             const bool cameraSinkLive = !!remoteVideoSink.lock();
-            fprintf(stderr, "[dialogbrain-diag] CREATE IncomingVideoChannel endpoint=%s isScreenCast=%d videoCodecs=%zu screenCastSinkAlive=%d videoSinkAlive=%d\n",
-                    endpoint.c_str(), sinkScreen, videoCodecs.size(), screenSinkLive, cameraSinkLive);
+            // dialogbrain TdE2E for video — same pattern as audio above.
+            webrtc::scoped_refptr<webrtc::FrameTransformerInterface> e2eVideoTransformer;
+            if (e2eFrameCallback_) {
+                e2eVideoTransformer = webrtc::make_ref_counted<E2EFrameTransformer>(
+                    /*user_id=*/0, /*is_outgoing=*/false, e2eFrameCallback_);
+            }
+            fprintf(stderr, "[dialogbrain-diag] CREATE IncomingVideoChannel endpoint=%s isScreenCast=%d videoCodecs=%zu screenCastSinkAlive=%d videoSinkAlive=%d e2eTransformer=%d\n",
+                    endpoint.c_str(), sinkScreen, videoCodecs.size(), screenSinkLive, cameraSinkLive, e2eVideoTransformer ? 1 : 0);
             fflush(stderr);
             incomingVideoChannels[endpoint] = std::make_unique<IncomingVideoChannel>(
                 call.get(),
@@ -200,7 +206,8 @@ namespace wrtc {
                 videoCodecs,
                 workerThread(),
                 networkThread(),
-                mediaContent.isScreenCast() ? remoteScreenCastSink : remoteVideoSink
+                mediaContent.isScreenCast() ? remoteScreenCastSink : remoteVideoSink,
+                e2eVideoTransformer
             );
         } else if (mediaContent.type == MediaContent::Type::Video) {
             fprintf(stderr, "[dialogbrain-diag] DROP video subscribe (isAddable=false) endpoint=%s isScreenCast=%d screenIn=%d cameraIn=%d\n",

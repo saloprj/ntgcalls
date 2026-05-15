@@ -118,6 +118,7 @@ namespace wrtc {
     void NativeNetworkInterface::addIncomingSmartSource(const std::string& endpoint, const MediaContent& mediaContent, const bool force) {
         std::lock_guard lock(mutex);
         if (pendingContent.contains(endpoint) && !force) {
+            RTC_LOG(LS_INFO) << "[dialogbrain-diag] addIncomingSmartSource SKIP endpoint=" << endpoint << " reason=already_pending force=" << force;
             return;
         }
         bool isAddable = false;
@@ -133,6 +134,18 @@ namespace wrtc {
             }
             break;
         }
+        const char* typeStr = mediaContent.type == MediaContent::Type::Audio ? "audio" : "video";
+        RTC_LOG(LS_INFO) << "[dialogbrain-diag] addIncomingSmartSource ENTER endpoint=" << endpoint
+                          << " type=" << typeStr
+                          << " isScreenCast=" << mediaContent.isScreenCast()
+                          << " ssrcGroups=" << mediaContent.ssrcGroups.size()
+                          << " payloadTypes=" << mediaContent.payloadTypes.size()
+                          << " rtpExtensions=" << mediaContent.rtpExtensions.size()
+                          << " isAddable=" << isAddable
+                          << " audioIn=" << audioIncoming
+                          << " cameraIn=" << cameraIncoming
+                          << " screenIn=" << screenIncoming
+                          << " force=" << force;
         if (isAddable && mediaContent.type == MediaContent::Type::Audio) {
             if (incomingAudioChannels.size() > 10) {
                 int64_t minActivity = INT64_MAX;
@@ -177,6 +190,14 @@ namespace wrtc {
                 mediaContent.payloadTypes,
                 isGroupConnection()
             );
+            const bool sinkScreen = mediaContent.isScreenCast();
+            const bool screenSinkLive = !!remoteScreenCastSink.lock();
+            const bool cameraSinkLive = !!remoteVideoSink.lock();
+            RTC_LOG(LS_INFO) << "[dialogbrain-diag] CREATE IncomingVideoChannel endpoint=" << endpoint
+                              << " isScreenCast=" << sinkScreen
+                              << " videoCodecs=" << videoCodecs.size()
+                              << " screenCastSinkAlive=" << screenSinkLive
+                              << " videoSinkAlive=" << cameraSinkLive;
             incomingVideoChannels[endpoint] = std::make_unique<IncomingVideoChannel>(
                 call.get(),
                 channelManager.get(),
@@ -188,6 +209,15 @@ namespace wrtc {
                 networkThread(),
                 mediaContent.isScreenCast() ? remoteScreenCastSink : remoteVideoSink
             );
+        } else if (mediaContent.type == MediaContent::Type::Video) {
+            // Diagnostic: video subscribe arrived but isAddable=false → silent drop.
+            // This is the single most common failure mode for missing SCREEN frames:
+            // record(screen=True) didn't register a Screen writer, so screenIncoming
+            // stayed false, so the video channel is never created.
+            RTC_LOG(LS_WARNING) << "[dialogbrain-diag] DROP video subscribe (isAddable=false) endpoint=" << endpoint
+                                 << " isScreenCast=" << mediaContent.isScreenCast()
+                                 << " screenIn=" << screenIncoming
+                                 << " cameraIn=" << cameraIncoming;
         }
         if (pendingContent.contains(endpoint)) {
             return;

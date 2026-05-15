@@ -3,6 +3,7 @@
 //
 
 #include <random>
+#include <cstdio>
 #include <p2p/base/dtls_transport.h>
 #include <p2p/client/basic_port_allocator.h>
 #include <wrtc/exceptions.hpp>
@@ -408,28 +409,40 @@ namespace wrtc {
     }
 
     uint32_t GroupConnection::addIncomingVideo(const std::string& endpoint, const std::vector<SsrcGroup>& ssrcGroups) {
-        if (pendingContent.contains(endpoint)) {
+        const bool alreadyPending = pendingContent.contains(endpoint);
+        const bool hasMtprotoStream = (mtprotoStream != nullptr);
+        // Use fprintf(stderr) instead of RTC_LOG so the line is unconditional —
+        // libwebrtc's runtime log severity may filter out LS_INFO before we
+        // ever see it. Container's docker logs captures stderr.
+        fprintf(stderr, "[dialogbrain-diag] GroupConnection::addIncomingVideo ENTER endpoint=%s ssrcGroups=%zu alreadyPending=%d hasMtprotoStream=%d\n",
+                endpoint.c_str(), ssrcGroups.size(), alreadyPending, hasMtprotoStream);
+        fflush(stderr);
+        RTC_LOG(LS_INFO) << "[dialogbrain-diag] GroupConnection::addIncomingVideo ENTER endpoint=" << endpoint
+                          << " ssrcGroups=" << ssrcGroups.size()
+                          << " alreadyPending=" << alreadyPending
+                          << " hasMtprotoStream=" << hasMtprotoStream;
+        if (alreadyPending) {
+            RTC_LOG(LS_INFO) << "[dialogbrain-diag] GroupConnection::addIncomingVideo SILENT_RETURN endpoint=" << endpoint << " reason=already_pending";
             return 0;
         }
         MediaContent mediaContent;
         mediaContent.type = MediaContent::Type::Video;
         mediaContent.ssrcGroups = ssrcGroups;
-        // dialogbrain/screen-share-fix: populate payloadTypes + rtpExtensions
-        // from mediaConfig so the downstream IncomingVideoChannel is built
-        // with the negotiated codec list. Without this the channel has an
-        // empty codec table and the SFU's video stream can't be demuxed —
-        // SCREEN frames silently never reach the on_frames callback. Mirrors
-        // the outgoing-video setup at the top of this file (line ~394) and
-        // the incoming-audio setup in addIncomingAudio() below.
         mediaContent.rtpExtensions = mediaConfig.videoRtpExtensions;
         mediaContent.payloadTypes = mediaConfig.videoPayloadTypes;
         if (mtprotoStream) {
+            fprintf(stderr, "[dialogbrain-diag] GroupConnection::addIncomingVideo BRANCH=mtprotoStream endpoint=%s mainSsrc=%u isScreenCast=%d payloadTypes=%zu rtpExtensions=%zu\n",
+                    endpoint.c_str(), mediaContent.mainSsrc(), mediaContent.isScreenCast(),
+                    mediaContent.payloadTypes.size(), mediaContent.rtpExtensions.size());
+            fflush(stderr);
             mtprotoStream->addIncomingVideo(
                 endpoint,
                 mediaContent.mainSsrc(),
                 mediaContent.isScreenCast()
             );
         } else {
+            fprintf(stderr, "[dialogbrain-diag] GroupConnection::addIncomingVideo BRANCH=smartSource endpoint=%s\n", endpoint.c_str());
+            fflush(stderr);
             addIncomingSmartSource(endpoint, mediaContent);
         }
         return mediaContent.mainSsrc();

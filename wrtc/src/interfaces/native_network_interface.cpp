@@ -118,7 +118,8 @@ namespace wrtc {
     void NativeNetworkInterface::addIncomingSmartSource(const std::string& endpoint, const MediaContent& mediaContent, const bool force) {
         std::lock_guard lock(mutex);
         if (pendingContent.contains(endpoint) && !force) {
-            RTC_LOG(LS_INFO) << "[dialogbrain-diag] addIncomingSmartSource SKIP endpoint=" << endpoint << " reason=already_pending force=" << force;
+            fprintf(stderr, "[dialogbrain-diag] addIncomingSmartSource SKIP endpoint=%s reason=already_pending force=%d\n", endpoint.c_str(), force);
+            fflush(stderr);
             return;
         }
         bool isAddable = false;
@@ -135,17 +136,11 @@ namespace wrtc {
             break;
         }
         const char* typeStr = mediaContent.type == MediaContent::Type::Audio ? "audio" : "video";
-        RTC_LOG(LS_INFO) << "[dialogbrain-diag] addIncomingSmartSource ENTER endpoint=" << endpoint
-                          << " type=" << typeStr
-                          << " isScreenCast=" << mediaContent.isScreenCast()
-                          << " ssrcGroups=" << mediaContent.ssrcGroups.size()
-                          << " payloadTypes=" << mediaContent.payloadTypes.size()
-                          << " rtpExtensions=" << mediaContent.rtpExtensions.size()
-                          << " isAddable=" << isAddable
-                          << " audioIn=" << audioIncoming
-                          << " cameraIn=" << cameraIncoming
-                          << " screenIn=" << screenIncoming
-                          << " force=" << force;
+        fprintf(stderr, "[dialogbrain-diag] addIncomingSmartSource ENTER endpoint=%s type=%s isScreenCast=%d ssrcGroups=%zu payloadTypes=%zu rtpExtensions=%zu isAddable=%d audioIn=%d cameraIn=%d screenIn=%d force=%d\n",
+                endpoint.c_str(), typeStr, mediaContent.isScreenCast(),
+                mediaContent.ssrcGroups.size(), mediaContent.payloadTypes.size(), mediaContent.rtpExtensions.size(),
+                isAddable, (int)audioIncoming, (int)cameraIncoming, (int)screenIncoming, force);
+        fflush(stderr);
         if (isAddable && mediaContent.type == MediaContent::Type::Audio) {
             if (incomingAudioChannels.size() > 10) {
                 int64_t minActivity = INT64_MAX;
@@ -193,11 +188,9 @@ namespace wrtc {
             const bool sinkScreen = mediaContent.isScreenCast();
             const bool screenSinkLive = !!remoteScreenCastSink.lock();
             const bool cameraSinkLive = !!remoteVideoSink.lock();
-            RTC_LOG(LS_INFO) << "[dialogbrain-diag] CREATE IncomingVideoChannel endpoint=" << endpoint
-                              << " isScreenCast=" << sinkScreen
-                              << " videoCodecs=" << videoCodecs.size()
-                              << " screenCastSinkAlive=" << screenSinkLive
-                              << " videoSinkAlive=" << cameraSinkLive;
+            fprintf(stderr, "[dialogbrain-diag] CREATE IncomingVideoChannel endpoint=%s isScreenCast=%d videoCodecs=%zu screenCastSinkAlive=%d videoSinkAlive=%d\n",
+                    endpoint.c_str(), sinkScreen, videoCodecs.size(), screenSinkLive, cameraSinkLive);
+            fflush(stderr);
             incomingVideoChannels[endpoint] = std::make_unique<IncomingVideoChannel>(
                 call.get(),
                 channelManager.get(),
@@ -210,14 +203,9 @@ namespace wrtc {
                 mediaContent.isScreenCast() ? remoteScreenCastSink : remoteVideoSink
             );
         } else if (mediaContent.type == MediaContent::Type::Video) {
-            // Diagnostic: video subscribe arrived but isAddable=false → silent drop.
-            // This is the single most common failure mode for missing SCREEN frames:
-            // record(screen=True) didn't register a Screen writer, so screenIncoming
-            // stayed false, so the video channel is never created.
-            RTC_LOG(LS_WARNING) << "[dialogbrain-diag] DROP video subscribe (isAddable=false) endpoint=" << endpoint
-                                 << " isScreenCast=" << mediaContent.isScreenCast()
-                                 << " screenIn=" << screenIncoming
-                                 << " cameraIn=" << cameraIncoming;
+            fprintf(stderr, "[dialogbrain-diag] DROP video subscribe (isAddable=false) endpoint=%s isScreenCast=%d screenIn=%d cameraIn=%d\n",
+                    endpoint.c_str(), mediaContent.isScreenCast(), (int)screenIncoming, (int)cameraIncoming);
+            fflush(stderr);
         }
         if (pendingContent.contains(endpoint)) {
             return;

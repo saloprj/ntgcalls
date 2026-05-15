@@ -114,13 +114,21 @@ namespace wrtc {
         }
 
         [[nodiscard]] bool isScreenCast() const {
-            // dialogbrain/screen-share-fix: relaxed size()==2 → size()>=2.
-            // Some Telegram clients publish presentation tracks with more than
-            // 2 SSRCs in the SIM group (e.g. primary + RTX + FEC variants);
-            // the strict equality would mis-classify them as camera tracks and
-            // bypass the screen-cast quality/rendering paths.
+            // dialogbrain/screen-share-fix (rev 2): also accept FID semantics
+            // with >=2 ssrcs. Mobile Telegram clients (iOS at least) publish
+            // single-layer screencast as ONE FID group with [main, rtx], not
+            // a SIM group with multiple simulcast layers. The strict
+            // SIM-only check classifies mobile shares as camera, sets
+            // isAddable=cameraIncoming=false in addIncomingSmartSource, and
+            // silently drops the subscribe — frames never reach Python.
+            // FID with >=2 ssrcs ⇒ retransmission redundancy is set up,
+            // which Telegram only does for video. We never subscribe to
+            // camera endpoints from the Python side (only participant.
+            // presentation), so widening this won't subscribe to anything
+            // we don't already explicitly want.
             return std::ranges::any_of(ssrcGroups, [](const auto& group) {
-                return group.semantics == "SIM" && group.ssrcs.size() >= 2;
+                return (group.semantics == "SIM" || group.semantics == "FID")
+                    && group.ssrcs.size() >= 2;
             });
         }
 
